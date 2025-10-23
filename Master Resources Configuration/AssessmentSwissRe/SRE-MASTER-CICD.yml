@@ -1,0 +1,192 @@
+trigger:
+  branches:
+    include:
+      - mainbranch
+  paths:
+    include:
+      - self
+resources:
+  - repo: self
+  
+variables:
+  TF_WORKING_DIR: '$(System.DefaultWorkingDirectory)'
+  -group: Azure_SP_Connection_String
+  TF_LOG_PATH: 'terraform-debug.log'
+  variables:
+  CLIENT: 8ec7ba7e-7961-4747-9ef8-f34062e9177e
+  SECRET: 07f8Q~iKC7gTFx0ym9Fn83Caq9wKn4IXq41rldnr
+  SUBS: 1238fe66-60d9-4798-b45b-5cfe98263fd1
+  TENANT: 8a246d4e-80d4-4a03-968c-b9e56568f343
+
+stages:
+  - stage: TerraformPlan
+    displayName: "Terraform Plan"
+    jobs:
+      - job: Plan
+        displayName: "Run Terraform fmt, validate, plan"
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: 'latest'     
+
+          - script: |
+              cd $(tf_working_dir)
+              terraform init -reconfigure \
+                -backend-config="resource_group_name=Chennai-DC-BCP" \
+                -backend-config="storage_account_name=bcpdbstorage" \
+                -backend-config="container_name=bcpstatefile" \
+                -backend-config="key=CICD.terraform.tfstate"
+            displayName: 'TerraformInit'
+            
+            env:
+              ARM_CLIENT_ID: $(CLIENT)
+              ARM_CLIENT_SECRET: $(SECRET)
+              ARM_SUBSCRIPTION_ID: $(SUBS)
+              ARM_TENANT_ID: $(TENANT)
+
+          - script: |
+              cd $(tf_working_dir)
+              terraform fmt
+            displayName: 'TerraformFormat'
+            
+            env:
+              ARM_CLIENT_ID: $(CLIENT)
+              ARM_CLIENT_SECRET: $(SECRET)
+              ARM_SUBSCRIPTION_ID: $(SUBS)
+              ARM_TENANT_ID: $(TENANT)
+
+          - script: |
+              cd $(tf_working_dir)
+              terraform validate
+            displayName: 'TerraformValidate'
+            
+            env:
+              ARM_CLIENT_ID: $(CLIENT)
+              ARM_CLIENT_SECRET: $(SECRET)
+              ARM_SUBSCRIPTION_ID: $(SUBS)
+              ARM_TENANT_ID: $(TENANT)
+
+          - script: |
+              cd $(tf_working_dir)
+              TF_LOG=$(TF_LOG) TF_LOG_PATH=$(TF_LOG_PATH) terraform plan -out=tfplan
+            displayName: 'TerraformPlan'
+            
+            env:
+              ARM_CLIENT_ID: $(CLIENT)
+              ARM_CLIENT_SECRET: $(SECRET)
+              ARM_SUBSCRIPTION_ID: $(SUBS)
+              ARM_TENANT_ID: $(TENANT)
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: $(tf_working_dir)/tfplan
+              artifactName: tfplan
+              publishLocation: pipeline
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: $(tf_working_dir)/$(TF_LOG_PATH)
+              artifactName: tfplan-debug-log
+              publishLocation: pipeline
+
+  - stage: TerraformApply
+    displayName: "Terraform Apply"
+    dependsOn: TerraformPlan
+    condition: succeeded()
+    jobs:
+      - deployment: Apply
+        environment: 'Sre-webapp'  # Add approval in DevOps UI
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - download: current
+                  artifact: tfplan
+
+                - task: TerraformInstaller@1
+                  inputs:
+                    terraformVersion: 'latest'
+
+                - script: |
+                    echo "Searching for tfplan file..."
+                    find $(Pipeline.Workspace) -type f -name "tfplan"
+                    echo "Copying tfplan to working directory: $(tf_working_dir)"
+                    cp $(Pipeline.Workspace)/**/tfplan $(tf_working_dir)/tfplan
+                  displayName: 'Copy tfplan file to working directory'
+
+                - script: |
+                    cd $(tf_working_dir)
+                    terraform init -reconfigure \
+                      -backend-config="resource_group_name=Chennai-DC-BCP" \
+                      -backend-config="storage_account_name=bcpdbstorage" \
+                      -backend-config="container_name=bcpstatefile" \
+                      -backend-config="key=CICD.terraform.tfstate"
+                  displayName: 'TerraformInit'
+                  
+                  env:
+                    ARM_CLIENT_ID: $(CLIENT)
+                    ARM_CLIENT_SECRET: $(SECRET)
+                    ARM_SUBSCRIPTION_ID: $(SUBS)
+                    ARM_TENANT_ID: $(TENANT)
+
+                - script: |
+                    echo "Checking for downloaded tfplan file:"
+                    ls -l "$(Pipeline.Workspace)/tfplan"
+                  displayName: 'Verify tfplan file exists'
+
+
+                - script: |
+                    cd $(tf_working_dir)
+                    TF_LOG=DEBUG TF_LOG_PATH=$(TF_LOG_PATH) terraform apply -auto-approve tfplan
+                  displayName: 'Terraform Apply(with logging)'
+
+                  env:
+                    ARM_CLIENT_ID: $(CLIENT)
+                    ARM_CLIENT_SECRET: $(SECRET)
+                    ARM_SUBSCRIPTION_ID: $(SUBS)
+                    ARM_TENANT_ID: $(TENANT)
+
+                - task: PublishPipelineArtifact@1
+                  inputs:
+                    targetPath: '$(tf_working_dir)/$(TF_LOG_PATH)'
+                    artifactName: 'tfapply-debug-log'
+                    publishLocation: 'pipeline'
+
+  - stage: TerraformDestroy
+    displayName: "Terraform Destroy (Manual)"
+    condition: eq(variables['Build.Reason'], 'Manual')
+    jobs:
+      - job: Destroy
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: 'latest'
+
+          - script: |
+              cd $(tf_working_dir)
+              terraform init -reconfigure \
+                -backend-config="resource_group_name=Chennai-DC-BCP" \
+                -backend-config="storage_account_name=bcpdbstorage" \
+                -backend-config="container_name=bcpstatefile" \
+                -backend-config="key=CICD.terraform.tfstate"
+              
+            env:
+              ARM_CLIENT_ID: $(CLIENT)
+              ARM_CLIENT_SECRET: $(SECRET)
+              ARM_SUBSCRIPTION_ID: $(SUBS)
+              ARM_TENANT_ID: $(TENANT)
+
+          - script: |
+              cd $(tf_working_dir)
+              terraform destroy -auto-approve
+            displayName: 'TerraformDestroy'
+            
+            env:
+              ARM_CLIENT_ID: $(CLIENT)
+              ARM_CLIENT_SECRET: $(SECRET)
+              ARM_SUBSCRIPTION_ID: $(SUBS)
+              ARM_TENANT_ID: $(TENANT)

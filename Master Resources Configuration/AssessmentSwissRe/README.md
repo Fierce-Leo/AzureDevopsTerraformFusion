@@ -6,11 +6,9 @@ This repository provisions an **Azure App Service**, **Azure SQL (server + DB)**
 - **Key Vault** for secrets (SQL admin password & connection string)
 - **Logging**, **validation**, and **least-privilege** guidance
 
-> Exercise requirements are covered: modules, variables, outputs, remote state, moving resources with `terraform state mv`, logging, security with Key Vault, and troubleshooting guidance.
-
 ---
 
-## Prereqs
+## Prerequsites
 
 - Terraform v1.5+
 - Azure CLI logged in, or a Service Principal configured via env vars:
@@ -43,8 +41,6 @@ terraform validate
 terraform plan -var-file=env/we.tfvars -var-file=env/ns.tfvars -out=plan.out
 TF_LOG=DEBUG terraform apply plan.out
 ```
-
-> You can also run without tfvars; defaults are baked into `variables.tf`.
 
 ---
 
@@ -87,22 +83,6 @@ azure-migration/
 Azure SQL supports **service endpoints** on a **subnet** in a **VNet**. App Service integrates with that subnet (VNet integration).  
 This project creates a VNet/Subnet with the **`Microsoft.Sql`** service endpoint enabled and attaches the **Web App** to that subnet.
 
----
-
-## Moving Resources (no recreation)
-
-If you initially created Storage inside `modules/rg` and later pulled it up to `modules/storage`, use `terraform state mv`:
-
-```bash
-# Example: move the storage resource from the nested module path to its new module path
-terraform state list | grep azurerm_storage_account
-
-terraform state mv   'module.region_resources["WE"].module.rg.module.storage.azurerm_storage_account.storage[0]'   'module.region_resources["WE"].module.storage.azurerm_storage_account.storage[0]'
-```
-
-Repeat for all indices and regions as needed. Verify with `terraform plan` that no resources are recreated.
-
----
 
 ## Validation & Logging
 
@@ -112,8 +92,6 @@ terraform validate
 TF_LOG=DEBUG terraform plan -out=plan.out
 TF_LOG=TRACE terraform apply plan.out
 ```
-
-See **TROUBLESHOOTING.md** for failure triage.
 
 ---
 

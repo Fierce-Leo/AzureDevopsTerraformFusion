@@ -1,6 +1,6 @@
 # Troubleshooting
 
-## Common Failures
+## Common Failures & Issues that can occur during deployments
 
 ### Name already taken (Storage Accounts/Web Apps)
 - Azure requires **globally unique** names. This repo uses a random suffix. If collisions still occur, remove `.terraform/` and re-apply or adjust the prefix locally.
@@ -21,3 +21,6 @@
 - Use `terraform state list` to confirm resource addresses.
 - If a module refactor changed addresses, use `terraform state mv` to align state to code.
 
+### Virtual Network
+- Provide unique addresses & CIDR for Vnet & Subnet to avoid overlapping in Future
+- Make sure to delegate the subnet for WebApp Vnet Integration else Azure blocks the web app from using the subnet for VNet integration.
