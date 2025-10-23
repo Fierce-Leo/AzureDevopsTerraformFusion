@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - mainbranch
+      - main
   paths:
     include:
       - self
