@@ -12,11 +12,6 @@ variables:
   TF_WORKING_DIR: '$(System.DefaultWorkingDirectory)'
   -group: Azure_SP_Connection_String
   TF_LOG_PATH: 'terraform-debug.log'
-  variables:
-  CLIENT: 8ec7ba7e-7961-4747-9ef8-f34062e9177e
-  SECRET: 07f8Q~iKC7gTFx0ym9Fn83Caq9wKn4IXq41rldnr
-  SUBS: 1238fe66-60d9-4798-b45b-5cfe98263fd1
-  TENANT: 8a246d4e-80d4-4a03-968c-b9e56568f343
 
 stages:
   - stage: TerraformPlan
