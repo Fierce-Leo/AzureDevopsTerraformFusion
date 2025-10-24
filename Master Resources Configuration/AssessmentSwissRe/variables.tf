@@ -26,6 +26,21 @@ variable "regions" {
       sub_space           = "10.18.1.0/24"      
     }
   }
+  validation {
+    condition = alltrue([
+      for r in values(var.regions) :
+      !(try(r.appservice_sku_name, "B1") == "B2")
+    ])
+    error_message = "B2 is not allowed for appservice_sku_name. Use B1 or other supported SKUs."
+  }
+
+  validation {
+    condition = alltrue([
+      for r in values(var.regions) :
+      !startswith(r.var_space, "10.0.")
+    ])
+    error_message = "var_space cannot use 10.0.0.0/any address spaces. Use different IP ranges."
+  }
 }
 
 variable "project_prefix" {
