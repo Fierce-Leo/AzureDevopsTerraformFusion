@@ -20,7 +20,7 @@ This repository is structured into **three distinct directories**, each represen
 
 > **Purpose:** Deploys reusable modules and production-grade resources via a **single-multi-stage pipeline**.
 
-- Uses a **modular Terraform structure** (App Service, SQL DB, Storage, etc.)
+- Uses a **modular Terraform structure** (App Service, SQL DB, Application Gateway, Storage, etc.)
 - Runs on **single-multi-stage DevOps YAML pipeline** with:
 - Designed for **speed, scalability, and CI/CD best practices**.
 
