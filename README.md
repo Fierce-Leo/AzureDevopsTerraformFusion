@@ -1,4 +1,4 @@
-# Welcome to Swissre Assessment – Authored by Leo
+# Welcome to Terraform + Azure Devops Project – Authored by Leo
 
 This repository is structured into **three distinct directories**, each representing a key phase of the infrastructure-as-code implementation using **Terraform on Azure DevOps**.
 
