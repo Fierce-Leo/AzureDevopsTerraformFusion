@@ -1,0 +1,46 @@
+trigger: none
+pr: none
+
+variables:
+  tf_working_dir: 'bootstrap/tfstate'
+  -group: Azure_SP_Connection_String
+  TF_LOG: DEBUG
+  TF_LOG_PATH: 'terraform-debug.log'
+
+stages:
+  - stage: Destroy
+    displayName: "Terraform Destroy"
+    jobs:
+      - job: Destroy
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: 'latest'
+
+          - script: |
+              cd $(tf_working_dir)
+              terraform init -reconfigure \
+                -backend-config="resource_group_name=Chennai-DC-BCP" \
+                -backend-config="storage_account_name=bcpdbstorage" \
+                -backend-config="container_name=bcpstatefile" \
+                -backend-config="key=Bootstrap.terraform.tfstate"
+            displayName: 'Terraform Init'
+
+            env:
+              ARM_CLIENT_ID: $(CLIENT)
+              ARM_CLIENT_SECRET: $(SECRET)
+              ARM_SUBSCRIPTION_ID: $(SUBS)
+              ARM_TENANT_ID: $(TENANT)
+
+          - script: |
+              cd $(tf_working_dir)
+              terraform destroy -auto-approve
+            displayName: 'Terraform Destroy'
+
+            env:
+              ARM_CLIENT_ID: $(CLIENT)
+              ARM_CLIENT_SECRET: $(SECRET)
+              ARM_SUBSCRIPTION_ID: $(SUBS)
+              ARM_TENANT_ID: $(TENANT)
